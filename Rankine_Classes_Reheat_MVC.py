@@ -494,40 +494,56 @@ class rankineController():
 
     def SetupCanvasInteraction(self, window):
         self.View.SetupCanvasInteraction(window)
-    def optimize(self):
-        def objFn(P):
-            """
-            This is the objective function to be minimized by the minimize function.
-            It computes the cycle thermal efficiency.
-            It applies a steep penalty if the p_mid exceeds p_high or is below p_low.
-            """
-            p=P[0]
-            self.Model.p_mid = p
-            eff = self.calc_efficiency()
-            penalty = 0
-            #region penalty functions
-            if p >= self.Model.p_high:
-                penalty += 1000 * (p - self.Model.p_high)**2
-                pass #$JES MISSING CODE# # implement a penalty
-            if p <= self.Model.p_low:
-                penalty += 1000 * (self.Model.p_low - p)**2
-                pass  # $JES MISSING CODE# # implement a penalty
-            if self.Model.heat_added_2 <0:
-                penalty += 1000 * abs(self.Model.heat_added_2)
-                pass  # $JES MISSING CODE# # implement a penalty
-            #endregion
-            return (100.0 - eff) + penalty
-        #set initial guess for p_mid as a numpy array
-        ic=np.array([self.Model.p_low + 0.01 * (self.Model.p_high - self.Model.p_low)])
-        #set self.Model.t_high and self.Model.t_high_2 to match view
-        self.readConditionsFromGUI()
-        #optimize efficiency by adjusting p_mid
-        I = minimize(objFn, ic, method="Nelder-Mead")
-        #Apply optimized p_mid
-        self.Model.p_mid = I.x[0]
-        self.le_PMid.setText("{:0.3f}".format(self.Model.p_mid))
-        self.updateModel()
-        pass
+def optimize(self):
+    def objFn(P):
+        """
+        Objective function to minimize using the optimization algorithm.
+        Calculates the thermal efficiency of the cycle and applies penalties for constraints violations.
+        
+        Args:
+            P (list): Contains the midpoint pressure `p_mid`.
+        
+        Returns:
+            float: The objective value to minimize, comprising the inverse of efficiency and penalties.
+        """
+        # Extract the pressure value from the input list.
+        p = P[0]
+        # Update the model's midpoint pressure.
+        self.Model.p_mid = p
+        # Calculate the thermal efficiency of the cycle.
+        eff = self.calc_efficiency()
+        # Initialize penalty to zero.
+        penalty = 0
+        
+        # Penalty calculation block:
+        # Penalty for exceeding the high pressure threshold.
+        if p >= self.Model.p_high:
+            penalty += 1000 * (p - self.Model.p_high) ** 2
+        # Penalty for falling below the low pressure threshold.
+        if p <= self.Model.p_low:
+            penalty += 1000 * (self.Model.p_low - p) ** 2
+        # Penalty for negative heat added in the second stage.
+        if self.Model.heat_added_2 < 0:
+            penalty += 1000 * abs(self.Model.heat_added_2)
+
+        # Return the cost function to minimize.
+        return (100.0 - eff) + penalty
+
+    # Initial guess for midpoint pressure, slightly above the lower limit.
+    ic = np.array([self.Model.p_low + 0.01 * (self.Model.p_high - self.Model.p_low)])
+    # Update model conditions from GUI settings.
+    self.readConditionsFromGUI()
+    # Optimize the efficiency by adjusting the midpoint pressure.
+    I = minimize(objFn, ic, method="Nelder-Mead")
+    # Update the model with the optimized midpoint pressure.
+    self.Model.p_mid = I.x[0]
+    # Display the optimized midpoint pressure in the GUI.
+    self.le_PMid.setText("{:0.3f}".format(self.Model.p_mid))
+    # Reflect the updated conditions in the model.
+    self.updateModel()
+    # End of optimization function.
+    pass
+
     def readConditionsFromGUI(self):
         """
         This reads the line edit boxes and radio buttons from the GUI

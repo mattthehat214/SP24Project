@@ -1,0 +1,77 @@
+import sys
+from PyQt5 import QtWidgets as qtw, QtGui
+from scipy.optimize import minimize
+
+class Ui_Form(object):
+    def setupUi(self, Form):
+        Form.setObjectName("Form")
+        Form.resize(400, 300)
+        self.verticalLayout = qtw.QVBoxLayout(Form)
+        self.verticalLayout.setObjectName("verticalLayout")
+        
+        self.le_PHigh = qtw.QLineEdit(Form)
+        self.verticalLayout.addWidget(self.le_PHigh)
+        self.le_PMid = qtw.QLineEdit(Form)
+        self.verticalLayout.addWidget(self.le_PMid)
+        self.le_PLow = qtw.QLineEdit(Form)
+        self.verticalLayout.addWidget(self.le_PLow)
+        self.le_TMid_max = qtw.QLineEdit(Form)
+        self.verticalLayout.addWidget(self.le_TMid_max)
+
+        self.pb_Optimize = qtw.QPushButton(Form)
+        self.pb_Optimize.setObjectName("pb_Optimize")
+        self.verticalLayout.addWidget(self.pb_Optimize)
+
+        self.lbl_Results = qtw.QLabel(Form)
+        self.verticalLayout.addWidget(self.lbl_Results)
+
+        self.retranslateUi(Form)
+        qtw.QMetaObject.connectSlotsByName(Form)
+
+    def retranslateUi(self, Form):
+        _translate = qtw.QCoreApplication.translate
+        Form.setWindowTitle(_translate("Form", "Rankine Cycle Optimizer"))
+        self.pb_Optimize.setText(_translate("Form", "Optimize"))
+
+class RankineController:
+    def __init__(self, ui):
+        self.ui = ui
+        self.setup_connections()
+
+    def setup_connections(self):
+        self.ui.pb_Optimize.clicked.connect(self.optimize)
+
+    def optimize(self):
+        P_High = float(self.ui.le_PHigh.text())
+        P_Low = float(self.ui.le_PLow.text())
+        T_Mid_max = float(self.ui.le_TMid_max.text())
+
+        def objective(x):
+            P_Mid, T_Mid = x
+            if P_Mid < P_Low or P_Mid > P_High or T_Mid > T_Mid_max:
+                return float('inf')  # Simulate a constraint with a penalty
+            # Simulate some efficiency calculation based on P_Mid and T_Mid
+            efficiency = P_Mid / P_High * 100 / (T_Mid / 100)
+            return -efficiency  # Negative for maximization
+
+        initial_guess = [(P_High + P_Low) / 2, T_Mid_max / 2]
+        bounds = [(P_Low, P_High), (100, T_Mid_max)]  # Example bounds
+        result = minimize(objective, initial_guess, bounds=bounds)
+        
+        if result.success:
+            optimal_P_Mid, optimal_T_Mid = result.x
+            self.ui.lbl_Results.setText(f'Optimal P_Mid: {optimal_P_Mid:.2f}, Optimal T_Mid: {optimal_T_Mid:.2f}')
+        else:
+            self.ui.lbl_Results.setText("Optimization failed.")
+
+class MainWindow(qtw.QWidget, Ui_Form):
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+        self.controller = RankineController(self)
+
+if __name__ == '__main__':
+    app = qtw.QApplication(sys.argv)
+    mw = MainWindow()
+    mw.show()
+    sys.exit(app.exec_())
